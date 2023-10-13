@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="blog">
+
+    <select id="findBlog" resultType="blogvo" parameterType="string">
+		<![CDATA[
+        select title   as blogTitle,
+               image   as blogImage,
+               blog_id as blogId
+        from blog
+        where blog_id = #{blogId }
+        ]]>
+	</select>
+
+    <select id="findCategoryList" resultType="blogvo" parameterType="string">
+		<![CDATA[
+        select no as categoryNo,
+            name as categoryName,
+            description as categoryDesc
+        from category
+        where blog_id=#{blogId }
+        order by no asc
+        ]]>
+
+	</select>
+
+    <select id="findPostList" resultType="blogvo" parameterType="blogvo">
+        <choose>
+            <when test="categoryNo == null ">
+                <![CDATA[
+				select a.no as postNo,
+				       a.title as postTitle,
+				       a.contents as postContents,
+				       a.reg_date as postRegDate
+				from post a, (select min(no) no, blog_id
+				              	from category
+								where blog_id = #{blogId }
+								order by no asc ) b
+				where a.category_no = b.no
+                order by a.no desc
+
+				]]>
+            </when>
+            <otherwise>
+                select a.no as postNo,
+                a.title as postTitle,
+                a.contents as postContents,
+                a.reg_date as postRegDate
+                from post a, category b
+                where a.category_no = b.no
+                and b.no = #{categoryNo }
+                and b.blog_id=#{blogId }
+                order by a.no desc
+            </otherwise>
+
+        </choose>
+
+    </select>
+
+    <select id="findPostContent" resultType="blogvo" parameterType="blogvo">
+        <choose>
+            <when test="postNo == null ">
+                <![CDATA[
+				select a.no, a.title, a.contents, a.reg_date
+				from post a, (select min(no) no, blog_id
+				              	from category
+								where blog_id = #{blogId }
+								order by no asc) b
+				where a.category_no = b.no
+				]]>
+            </when>
+            <otherwise>
+                select a.no, a.title, a.contents, a.reg_date
+                from post a, category b
+                where b.category_no = a.no
+                and b.no = #{categoryNo }
+                and b.blog_id=#{blogId }
+                order by no asc
+            </otherwise>
+        </choose>
+    </select>
+
+
+    <!--	new blog 생성-->
+    <insert id="insert" parameterType="blogvo">
+		<![CDATA[
+        insert
+        into blog
+        values ('블로그', '/assets/images/zzalang2.jpg', #{blogId})
+        ]]>
+	</insert>
+    <insert id="insertCategory" parameterType="string">
+		<![CDATA[
+        insert into category
+        values (null, '기본 카테고리', '기본 카테고리 입니다.', #{blogId})
+        ]]>
+	</insert>
+    <insert id="insertPost" parameterType="string">
+		<![CDATA[
+        insert into post
+        values (null, '가입을 축하합니다.', '기본 글입니다. </br> 새로운 글을 작성해보세요!',
+                (select no
+                    from category
+                    where blog_id = #{blogId}), now() )
+        ]]>
+	</insert>
+
+    <!--	admin -->
+    <update id="updateBasic" parameterType="blogvo">
+		<![CDATA[
+        update blog
+        set title = #{blogTitle },
+            image = #{blogImage }
+        where blog_id = #{blogId }
+        ]]>
+	</update>
+
+    <!--	admin/category-->
+    <select id="findAdminCategory" resultType="blogvo" parameterType="string">
+		<![CDATA[
+        SELECT a.no          AS categoryNo,
+               a.name        AS categoryName,
+               a.description AS categoryDesc,
+               CASE
+                   WHEN COUNT(b.no) IS NULL THEN 0
+                   ELSE COUNT(b.no)
+                   END       AS postCount
+        FROM category a
+                 LEFT JOIN
+             post b ON a.no = b.category_no
+        WHERE a.blog_id = #{blogId }
+        GROUP BY a.no, a.name, a.description
+        ORDER BY a.no ASC;
+        ]]>
+	</select>
+    <delete id="deleteCategory" parameterType="blogvo">
+		<![CDATA[
+        DELETE
+        FROM category
+        WHERE blog_id = #{blogId}
+          AND no = #{categoryNo}
+        ]]>
+	</delete>
+
+    <delete id="deletePost" parameterType="blogvo">
+		<![CDATA[
+        DELETE
+        FROM post
+        WHERE category_no = #{categoryNo}
+        ]]>
+	</delete>
+
+    <insert id="InsertAdminCategory" parameterType="blogvo">
+		<![CDATA[
+        insert into category
+        values (null, #{categoryName}, #{categoryDesc}, #{blogId})
+        ]]>
+	</insert>
+    <!--admin/write-->
+    <insert id="insertAdminPost" parameterType="blogvo">
+		<![CDATA[
+        insert into post
+        values (null, #{postTitle}, #{postContents}, #{categoryNo}, now())
+        ]]>
+	</insert>
+</mapper>
